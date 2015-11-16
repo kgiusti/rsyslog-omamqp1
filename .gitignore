@@ -1,3 +1,5 @@
+*~
+
 # Object files
 *.o
 *.ko
@@ -30,3 +32,18 @@
 
 # Debug files
 *.dSYM/
+
+# python
+external/python/*.swp
+external/python/*.pyc
+external/python/*.log
+external/python/.tox
+external/python/.coverage
+external/python/*.egg-info/
+external/python/*.egg
+external/python/build/
+external/python/doc/build/
+external/python/doc/source/api/
+external/python/dist/
+external/python/.testrepository/
+
