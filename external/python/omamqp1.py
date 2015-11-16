@@ -25,6 +25,10 @@
 """
 
 import sys
+
+# HACK for now:
+sys.path.append("/home/kgiusti/work/rsyslog-omamqp1/external/python/PY27/lib64/python2.7/site-packages")
+
 import select
 import threading
 try:
@@ -57,27 +61,27 @@ class MessageBusHandler(MessagingHandler):
     def _msg_loop(self):
         try:
             container = Container(self)
-            container.timeout = 3.0
+            container.timeout = 1.0  # periodically exit process()
             container.start()
             while self._running:
                 if not container.process():
                     break
-            print("Stopping...")
             container.stop()
         except Exception as e:
-            print("EXCEPT? %s" % str(e))
-        print("EXIT")
+            # print("EXCEPT? %s" % str(e))
+            raise
+        #print("EXIT")
 
     def _send(self):
         # pull messages off the queue and send them
-        print("sending messages")
+        #print("sending messages")
         while self.sender.credit and not self._in_queue.empty():
             msg = self._in_queue.get(False)
             self.sender.send(msg)
-        print("messages sent")
+        #print("messages sent")
 
     def on_start(self, event):
-        print("ON_START %s" % str(event))
+        #print("ON_START %s" % str(event))
         self._container = event.container
         self._container.selectable(self._injector)
         self.sender = self._container.create_sender(self._url, name="rsyslog-client")
@@ -91,7 +95,7 @@ class MessageBusHandler(MessagingHandler):
     def on_shutdown(self, event):
         """Shutdown the Messaging Bus thread
         """
-        print("Shutting down Message Bus thread")
+        #print("Shutting down Message Bus thread")
         self._running = False
 
     def on_sendable(self, event):
@@ -101,58 +105,64 @@ class MessageBusHandler(MessagingHandler):
         """
         Called when the connection is closed.
         """
-        print("on_connection_closed %s" % event)
+        #print("on_connection_closed %s" % event)
+        pass
 
     def on_session_closed(self, event):
         """
         Called when the session is closed.
         """
-        print("on_session_closed %s" % event)
+        #print("on_session_closed %s" % event)
+        pass
 
     def on_link_closed(self, event):
         """
         Called when the link is closed.
         """
-        print("    def on_link_closed(self, event): %s" % event)
-        
+        #print("    def on_link_closed(self, event): %s" % event)
+        pass
+
     def on_connection_closing(self, event):
         """
         Called when the peer initiates the closing of the connection.
         """
-        print("    def on_connection_closing(self, event): %s" % event)
-        
+        #print("    def on_connection_closing(self, event): %s" % event)
+        pass
+
     def on_session_closing(self, event):
         """
         Called when the peer initiates the closing of the session.
         """
-        print("    def on_session_closing(self, event): %s" % event)
+        #print("    def on_session_closing(self, event): %s" % event)
+        pass
 
     def on_link_closing(self, event):
         """
         Called when the peer initiates the closing of the link.
         """
-        print("    def on_link_closing(self, event): %s" % event)
+        #print("    def on_link_closing(self, event): %s" % event)
+        pass
 
     def on_disconnected(self, event):
         """
         Called when the socket is disconnected.
         """
-        print("    def on_disconnected(self, event): %s" % event)
-
+        #print("DISCONNECTED FROM THE MESSAGE BUS - retrying...")
+        pass
 
     def on_accepted(self, event):
         """
         Called when the remote peer accepts an outgoing message.
         """
-        print("    def on_accepted(self, event): %s" % event)
-        
+        #print("    def on_accepted(self, event): %s" % event)
+        pass
 
     def on_rejected(self, event):
         """
         Called when the remote peer rejects an outgoing message.
         """
-        print("    def on_rejected(self, event): %s" % event)
-        
+        #print("    def on_rejected(self, event): %s" % event)
+        pass
 
     def on_released(self, event):
         """
@@ -160,8 +170,8 @@ class MessageBusHandler(MessagingHandler):
         that this may be in response to either the RELEASE or MODIFIED
         state as defined by the AMQP specification.
         """
-        print("    def on_released(self, event): %s" % event)
-        
+        #print("    def on_released(self, event): %s" % event)
+        pass
 
     def on_settled(self, event):
         """
@@ -169,8 +179,9 @@ class MessageBusHandler(MessagingHandler):
         message. This is the point at which it shouod never be
         retransmitted.
         """
-        print("    def on_settled(self, event): %s" % event)
-        
+        #print("    def on_settled(self, event): %s" % event)
+        pass
+
     def on_message(self, event):
         """
         Called when a message is received. The message itself can be
@@ -179,7 +190,20 @@ class MessageBusHandler(MessagingHandler):
         explicitly accepting it, the ``delivery`` should be used, also
         obtainable via a property on the event.
         """
-        print("    def on_message(self, event): %s" % event)
+        #print("    def on_message(self, event): %s" % event)
+        pass
+
+    def on_unhandled(self, name, event):
+        #print("UNHANDLED EVENT %s - %s" % (name, str(event)))
+        pass
+
+    def on_connection_opened(self, event):
+        #print("Connection UP!")
+        pass
+
+    def on_link_opened(self, event):
+        #print("Link UP!")
+        pass
 
 
 
@@ -206,7 +230,8 @@ def onExit():
     handler._thread.join(timeout=30)
     if handler._thread.isAlive():
         # just warn - we're shutting down anyhow
-        print("Message Bus thread failed to shutdown")
+        #print("Message Bus thread failed to shutdown")
+        pass
 
 def onReceive(msgs):
     """Put a list of strings (JSON log output) into a message and hand it over
