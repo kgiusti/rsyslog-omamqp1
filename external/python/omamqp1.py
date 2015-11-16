@@ -56,9 +56,16 @@ class MessageBusHandler(MessagingHandler):
 
     def _msg_loop(self):
         try:
-            Container(self).run()
-        except:
-            print("EXCEPT?")
+            container = Container(self)
+            container.timeout = 3.0
+            container.start()
+            while self._running:
+                if not container.process():
+                    break
+            print("Stopping...")
+            container.stop()
+        except Exception as e:
+            print("EXCEPT? %s" % str(e))
         print("EXIT")
 
     def _send(self):
@@ -85,8 +92,7 @@ class MessageBusHandler(MessagingHandler):
         """Shutdown the Messaging Bus thread
         """
         print("Shutting down Message Bus thread")
-        if self._container:
-            self._container.stop()
+        self._running = False
 
     def on_sendable(self, event):
         self._send()
