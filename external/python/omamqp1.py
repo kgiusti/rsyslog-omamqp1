@@ -41,8 +41,6 @@ from proton import ConnectionException, TransportException
 from proton.handlers import MessagingHandler
 from proton.reactor import Container, ApplicationEvent, EventInjector
 
-logging.basicConfig(level=logging.DEBUG)
-
 
 class MessageBusHandler(MessagingHandler):
     """Runs the Proton Message Handler in a dedicated thread.  Messages to be
@@ -66,7 +64,8 @@ class MessageBusHandler(MessagingHandler):
     def _msg_loop(self):
         try:
             container = Container(self)
-            container.timeout = 1.0  # periodically exit process()
+            # periodically exit process() to check _running
+            container.timeout = 1.0
             container.start()
             while self._running:
                 if not container.process():
@@ -74,7 +73,7 @@ class MessageBusHandler(MessagingHandler):
             container.stop()
         except Exception as e:
             self.exception = e
-            raise e
+            raise
 
     def _connect(self):
         self._connection_args['urls'] = self._urls
@@ -85,9 +84,13 @@ class MessageBusHandler(MessagingHandler):
 
     def _send(self):
         # pull messages off the queue and send them
+        count = 0
         while self._sender.credit and not self._in_queue.empty():
             msg = self._in_queue.get(False)
             self._sender.send(msg)
+            count += 1
+        if count:
+            logging.debug("%s messages sent", count)
 
     def on_start(self, event):
         self._container = event.container
@@ -98,18 +101,18 @@ class MessageBusHandler(MessagingHandler):
         """Application event indicating messages are ready to be fetched from
         the queue.
         """
+        logging.debug("on_messages_available called")
         self._send()
 
     def on_shutdown(self, event):
         """Shutdown the Messaging Bus thread
         """
+        logging.debug("on_shutdown called")
         self._running = False
 
     def on_sendable(self, event):
+        logging.debug("on_sendable: %s" % str(event.sender))
         self._send()
-
-    def on_connection_local_close(self, event):
-        pass
 
     def on_transport_error(self, event):
         super(MessageBusHandler, self).on_transport_error(event)
@@ -117,6 +120,7 @@ class MessageBusHandler(MessagingHandler):
         if tport.condition and tport.condition.name in self.fatal_conditions:
             raise TransportException("error: %s" %
                                      str(event.transport.condition))
+        logging.debug("Recoverable transport error: %s" % str(tport.condition))
 
     def on_connection_error(self, event):
         super(MessageBusHandler, self).on_connection_error(event)
@@ -132,94 +136,8 @@ class MessageBusHandler(MessagingHandler):
         super(MessageBusHandler, self).on_link_error(event)
         raise LinkException("error: %s" % str(event.link.remote_condition))
 
-    def on_connection_closed(self, event):
-        """
-        Called when the connection is closed.
-        """
-        pass
-
-    def on_session_closed(self, event):
-        """
-        Called when the session is closed.
-        """
-        pass
-
-    def on_link_closed(self, event):
-        """
-        Called when the link is closed.
-        """
-        pass
-
-    def on_connection_closing(self, event):
-        """
-        Called when the peer initiates the closing of the connection.
-        """
-        pass
-
-    def on_session_closing(self, event):
-        """
-        Called when the peer initiates the closing of the session.
-        """
-        pass
-
-    def on_link_closing(self, event):
-        """
-        Called when the peer initiates the closing of the link.
-        """
-        pass
-
-    def on_disconnected(self, event):
-        """
-        Called when the socket is disconnected.
-        """
-        pass
-
-    def on_accepted(self, event):
-        """
-        Called when the remote peer accepts an outgoing message.
-        """
-        pass
-
-    def on_rejected(self, event):
-        """
-        Called when the remote peer rejects an outgoing message.
-        """
-        pass
-
-    def on_released(self, event):
-        """
-        Called when the remote peer releases an outgoing message. Note
-        that this may be in response to either the RELEASE or MODIFIED
-        state as defined by the AMQP specification.
-        """
-        pass
-
-    def on_settled(self, event):
-        """
-        Called when the remote peer has settled the outgoing
-        message. This is the point at which it shouod never be
-        retransmitted.
-        """
-        pass
-
-    def on_message(self, event):
-        """
-        Called when a message is received. The message itself can be
-        obtained as a property on the event. For the purpose of
-        refering to this message in further actions (e.g. if
-        explicitly accepting it, the ``delivery`` should be used, also
-        obtainable via a property on the event.
-        """
-        pass
-
     def on_unhandled(self, name, event):
-        pass
-
-    def on_connection_opened(self, event):
-        pass
-
-    def on_link_opened(self, event):
-        pass
+        logging.debug("Unhandled callback: %s: %s", name, event)
 
 
 def _get_password(password_file):
@@ -272,6 +190,10 @@ def onInit():
                       " not necessary (eg. during development) as it will"
                       " allow the password to be visible to all users of the"
                       " system.")
+    parser.add_option("--log-level", default="WARNING",
+                      help="The default log level for internal logging")
+    parser.add_option("--log-to-file", default="/dev/null",
+                      help="Send internal log messages to a file.")
 
     # @TODO(kgiusti) - TBD:
     # ssl-ca-file
@@ -281,6 +203,16 @@ def onInit():
     # sasl-disable
 
     opts, args = parser.parse_args()
+
+    log_level = {"DEBUG": logging.DEBUG,
+                 "INFO": logging.INFO,
+                 "WARNING": logging.WARNING,
+                 "ERROR": logging.ERROR,
+                 "CRITICAL": logging.CRITICAL}.get(opts.log_level,
+                                                   "WARNING")
+    logging.basicConfig(filename=opts.log_to_file,
+                        level=log_level)
+
     urls = [u.strip(' ') for u in opts.url.split(',')]
     if opts.username:
         password = _get_password(opts.password_file)
@@ -304,8 +236,7 @@ def onExit():
     event_injector.trigger(event_die)
     handler._thread.join(timeout=30)
     if handler._thread.isAlive():
-        # @TODO(kgiusti) just warn - we're shutting down anyhow
-        pass
+        logging.warning("Unable to kill Message Bus I/O thread")
 
 
 def onReceive(msgs):
@@ -325,6 +256,7 @@ def onReceive(msgs):
 
     pmsg = Message(body=msgs)
     msg_queue.put(pmsg)
+    logging.debug("%s messages read", len(msgs))
     event_injector.trigger(event_msgs)
 
 
