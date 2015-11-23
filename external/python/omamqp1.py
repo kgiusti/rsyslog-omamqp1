@@ -161,7 +161,7 @@ handler = None
 def configFromFile():
     """Configuration is read from a file."""
     FILES = [os.path.expanduser("~/omamqp1.conf"),
-             "/etc/rsyslog.d/omamqp1.conf"]
+             "/etc/omamqp1.conf"]
     ec = os.environ.get("RSYSLOG_OMAMQP1_CONF")
     if ec:
         FILES = [ec]+FILES
