@@ -266,9 +266,9 @@ def onInit():
     heartbeat = opts.get('heartbeat')
     if heartbeat:
         conn_args['heartbeat'] = float(heartbeat)
-    sasl_mechs = opts.get('sasl-mechanisms')
-    if sasl_mechs:
-        conn_args['allowed_mechs'] = sasl_mechs.upper()
+    # sasl_mechs = opts.get('sasl-mechanisms')
+    # if sasl_mechs:
+    #     conn_args['allowed_mechs'] = sasl_mechs.upper()
 
     handler = MessageBusHandler(urls, opts.get('target', 'rsyslogd'),
                                 msg_queue, event_injector, **conn_args)
