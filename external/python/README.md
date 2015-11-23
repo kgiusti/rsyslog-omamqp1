@@ -40,12 +40,14 @@ Example:
            template="RSYSLOG_TraditionalFileFormat")
 
 In this case, the omamqp1.py program will attempt to read its
-configuration from a file called 'omamqp1.conf'.  The following
-directories are searched in the following order to find this file:
+configuration from a file.  The following paths are searched in order
+to find this file:
 
 * the value of the environment variable RSYSLOG_OMAMQP1_CONF
+  - e.g. export RSYSLOG_OMAMQP1_CONF=/root/omamqp1.conf
 * the home directory of the current user
-* the /etc/rsyslog.d/ directory
+  - e.g. /home/user/omamqp1.py
+* the file /etc/omamqp1.conf
 
 The format of the file is a list of 'name=value' pairs.  Only one
 name/value pair is allow per line.  Lines starting with the '#'
@@ -113,3 +115,9 @@ or, if a topic is desired instead of a queue:
 
 These dynamic targets are auto-delete and will be destroyed once there
 are no longer any subscribers or queue-bound messages.
+
+Versions of qpidd <= 0.34 also need to have the SASL service name set
+to 'amqp'. Add this to the qpidd.conf file:
+
+    sasl-service-name=amqp
+
