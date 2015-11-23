@@ -26,6 +26,7 @@
 
 import logging
 import optparse
+import os
 import select
 import sys
 import threading
@@ -41,6 +42,7 @@ from proton import ConnectionException, TransportException
 from proton.handlers import MessagingHandler
 from proton.reactor import Container, ApplicationEvent, EventInjector
 
+VERSION="0.0.0"
 
 class MessageBusHandler(MessagingHandler):
     """Runs the Proton Message Handler in a dedicated thread.  Messages to be
@@ -156,17 +158,46 @@ event_injector = EventInjector()
 handler = None
 
 
-def onInit():
-    global msg_queue
-    global event_injector
-    global handler
+def configFromFile():
+    """Configuration is read from a file."""
+    FILES = [os.path.expanduser("~/omamqp1.conf"),
+             "/etc/rsyslog.d/omamqp1.conf"]
+    ec = os.environ.get("RSYSLOG_OMAMQP1_CONF")
+    if ec:
+        FILES = [ec]+FILES
 
+    opts = {}
+    for f in FILES:
+        try:
+            with open(f, 'r') as fd:
+                for line in fd:
+                    line = line.strip(" \n\r")
+                    if line and line[0] != '#':
+                        key, value = line.split('=')
+                        opts[key] = value
+                break
+        except:
+            pass
+    if not opts:
+        raise RuntimeError("No configuration available")
+
+    import pdb
+    pdb.set_trace()
+
+
+
+    return opts
+
+
+def configFromArgs():
+    """Configuration is passed on the command line."""
     target = 'rsyslogd'
     parser = optparse.OptionParser(usage="usage: %prog [options] TARGET",
                                    description="Send rsyslog messages to"
-                                   " TARGET (default %s) via an AMQP1.0"
-                                   " message bus." % target)
-    parser.add_option("-u", "--url", default="amqp://localhost:5672",
+                                   " TARGET (default '%s') via an AMQP1.0"
+                                   " message bus.  Version %s"
+                                   % (target, VERSION))
+    parser.add_option("--url", default="amqp://localhost:5672",
                       help="address of message bus (default %default)."
                       " Also accepts a comma-separated list of addresses"
                       " which will be used for failover.")
@@ -195,6 +226,21 @@ def onInit():
     parser.add_option("--log-to-file", default="/dev/null",
                       help="Send internal log messages to a file.")
 
+    o, args = parser.parse_args()
+    opts = {}
+    for k,v in vars(o).items():
+        opts[k.replace('_','-')] = v
+    opts['target'] = args[0] if args else target
+    return opts
+
+
+def onInit():
+    global msg_queue
+    global event_injector
+    global handler
+
+    opts = configFromArgs() if len(sys.argv) > 1 else configFromFile()
+
     # @TODO(kgiusti) - TBD:
     # ssl-ca-file
     # ssl-cert-file
@@ -202,29 +248,33 @@ def onInit():
     # ssl-password-file
     # sasl-disable
 
-    opts, args = parser.parse_args()
+    log_level = opts.get('log-level', "WARNING").upper()
+    level = {"DEBUG": logging.DEBUG,
+             "INFO": logging.INFO,
+             "WARNING": logging.WARNING,
+             "ERROR": logging.ERROR,
+             "CRITICAL": logging.CRITICAL}.get(log_level,
+                                               "WARNING")
+    log_to_file = opts.get('log-to-file', '/dev/null')
+    logging.basicConfig(filename=log_to_file, level=level)
 
-    log_level = {"DEBUG": logging.DEBUG,
-                 "INFO": logging.INFO,
-                 "WARNING": logging.WARNING,
-                 "ERROR": logging.ERROR,
-                 "CRITICAL": logging.CRITICAL}.get(opts.log_level,
-                                                   "WARNING")
-    logging.basicConfig(filename=opts.log_to_file,
-                        level=log_level)
-
-    urls = [u.strip(' ') for u in opts.url.split(',')]
-    if opts.username:
-        password = _get_password(opts.password_file)
-        urls = [str(Url(u, username=opts.username, password=password))
+    urls = opts.get('url', "amqp://localhost:5672")
+    urls = [u.strip(' ') for u in urls.split(',')]
+    username = opts.get('username')
+    if username:
+        urls = [str(Url(u,
+                        username=username,
+                        password=opts.get('password',"")))
                 for u in urls]
 
     conn_args = {}
-    if opts.heartbeat:
-        conn_args['heartbeat'] = opts.heartbeat
-    if opts.sasl_mechanisms:
-        conn_args['allowed_mechs'] = opts.sasl_mechanisms.upper()
-    handler = MessageBusHandler(urls, args[0] if args else target,
+    heartbeat = opts.get('heartbeat')
+    if heartbeat:
+        conn_args['heartbeat'] = float(heartbeat)
+    sasl_mechs = opts.get('sasl-mechanisms')
+    if sasl_mechs:
+        conn_args['allowed_mechs'] = sasl_mechs.upper()
+    handler = MessageBusHandler(urls, opts.get('target', 'rsyslogd'),
                                 msg_queue, event_injector, **conn_args)
 
 
@@ -276,7 +326,7 @@ while keepRunning == 1:
                                                          0)[0]:
             line = sys.stdin.readline()
             if line:
-                msgs.append(line)
+                msgs.append(line.rstrip('\n\r'))
                 msgsInBatch = msgsInBatch + 1
             else:
                 # an empty line means stdin has been closed
