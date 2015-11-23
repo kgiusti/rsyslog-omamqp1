@@ -257,11 +257,11 @@ def onInit():
     urls = [u.strip(' ') for u in urls.split(',')]
     username = opts.get('username')
     if username:
+        password = _get_password(opts.get("password-file"))
         urls = [str(Url(u,
                         username=username,
-                        password=opts.get('password',"")))
+                        password=password))
                 for u in urls]
-
     conn_args = {}
     heartbeat = opts.get('heartbeat')
     if heartbeat:
