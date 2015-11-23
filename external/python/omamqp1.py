@@ -199,10 +199,11 @@ def configFromArgs():
                       help="A value in seconds indicating the desired"
                       " frequency of heartbeats used to test the underlying"
                       " socket is alive.")
-    parser.add_option("--sasl-mechanisms",
-                      help="A space-separated string of SASL mechanisms that"
-                      " are allowed (whitelist). If not specified, the"
-                      " defaults provided by the system are used.")
+    # TBD:
+    #parser.add_option("--sasl-mechanisms",
+    #                  help="A space-separated string of SASL mechanisms that"
+    #                  " are allowed (whitelist). If not specified, the"
+    #                  " defaults provided by the system are used.")
     parser.add_option("--username",
                       help="The username for SASL authentication (if"
                       " required).")
