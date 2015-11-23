@@ -43,9 +43,9 @@ In this case, the omamqp1.py program will attempt to read its
 configuration from a file called 'omamqp1.conf'.  The following
 directories are searched in the following order to find this file:
 
-1) the value of the environment variable RSYSLOG_OMAMQP1_CONF
-2) the home directory of the current user
-3) /etc/rsyslog.d/omamqp1.conf
+* the value of the environment variable RSYSLOG_OMAMQP1_CONF
+* the home directory of the current user
+* the /etc/rsyslog.d/ directory
 
 The format of the file is a list of 'name=value' pairs.  Only one
 name/value pair is allow per line.  Lines starting with the '#'
@@ -69,7 +69,7 @@ The format of the omamqp1.py command line:
     omamqp1.py <options...> [target]
 
 Use the --help option to list all the available options.  omamqp1.py
-takes one argument - a target.  The target is the address that is used
+takes one argument: a _target_.  The target is the address that is used
 as the destination for all messages.  If not specified, a default
 target of 'rsyslogd' is used.
 
@@ -97,7 +97,7 @@ Example:
 
     qpid-config add queue rsyslogd
 
-Alternatively, the target can be dynamically created by configuring a
+Alternatively, the target can be created on demand by configuring a
 queue-pattern (or topic-pattern) that matches the target.  To do this,
 add a _queue-patterns_ (or _topic_patterns_) directive to the qpidd
 configuration file /etc/qpid/qpidd.conf.
