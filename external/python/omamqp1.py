@@ -180,12 +180,6 @@ def configFromFile():
             pass
     if not opts:
         raise RuntimeError("No configuration available")
-
-    import pdb
-    pdb.set_trace()
-
-
-
     return opts
 
 
@@ -274,6 +268,7 @@ def onInit():
     sasl_mechs = opts.get('sasl-mechanisms')
     if sasl_mechs:
         conn_args['allowed_mechs'] = sasl_mechs.upper()
+
     handler = MessageBusHandler(urls, opts.get('target', 'rsyslogd'),
                                 msg_queue, event_injector, **conn_args)
 
