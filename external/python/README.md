@@ -121,3 +121,29 @@ to 'amqp'. Add this to the qpidd.conf file:
 
     sasl-service-name=amqp
 
+
+## Debugging ##
+
+I found debugging this module very difficult.  I do not
+have much experience with rsyslogd debugging in general, so I am
+ignorant in the methods used to debug external modules.
+
+Couple of tips:
+
+* Test your configuration outside of rsyslog.  omamqpy1.py can be run
+  directly from the command line.  It will run exactly the same way it
+  does under rsyslogd, so any configuration issues and bugs should be
+  reproducible.  Anything you type at the command line will be sent as
+  a message to the message bus once you hit enter.  I highly recommend
+  you try this method first before you deploy rsyslogd, since it will
+  uncover connection issues (such as authentication failures) that are
+  hard to diagnose from within rsyslogd.
+* Use the _log-to-file_ and _log-level_ options to gather logs from
+  omamqp1.py
+* (Advanced) Set the environmental variable "PN_TRACE_FRM" to 1 before
+  invoking omamqp1.py on the command line.  This will print a low
+  level protocol trace to stdout. Do *not* do this when running as a
+  module within rsyslogd. If you do, you're gonna have a bad time.  If
+  the trace does not show an obvious issue, feel free to post a
+  question on users@qpid.apache.org.  If possible include the trace
+  (inline, attachments are stripped by the mail server).
